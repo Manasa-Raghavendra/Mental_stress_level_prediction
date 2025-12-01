@@ -1,0 +1,75 @@
+# ----------------------------------------
+# Python
+# ----------------------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.log
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Byte-compiled / optimized / DLL files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# ----------------------------------------
+# Environment & Secrets
+# ----------------------------------------
+.env
+.env.*
+*.env
+
+# Do NOT upload API keys or credentials
+google_api_key.json
+
+# ----------------------------------------
+# Model Files & Checkpoints
+# ----------------------------------------
+*.bin
+*.pt
+*.pth
+*.ckpt
+checkpoint/
+model/
+models/
+tokenizer/
+cache/
+
+# Huggingface / Transformers cache
+~/.cache/
+.cache/
+transformers_cache/
+huggingface/
+
+# ----------------------------------------
+# IDE / Editor Files
+# ----------------------------------------
+.vscode/
+.idea/
+*.swp
+
+# ----------------------------------------
+# OS Files
+# ----------------------------------------
+.DS_Store
+Thumbs.db
+
+# ----------------------------------------
+# Node / Frontend (if any UI assets)
+# ----------------------------------------
+node_modules/
+dist/
+build/
+
+# ----------------------------------------
+# Render deployment
+# ----------------------------------------
+*.sqlite
+*.db

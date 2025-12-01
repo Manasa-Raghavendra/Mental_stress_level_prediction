@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mental Stress Prediction</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background: linear-gradient(135deg, #1f1c2c, #928DAB);
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* GLASS CARD */
+        .container {
+            backdrop-filter: blur(15px) saturate(180%);
+            -webkit-backdrop-filter: blur(15px) saturate(180%);
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            width: 480px;
+            padding: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+            animation: fadeIn 0.6s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* NAV */
+        .nav {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .nav a {
+            margin: 0 12px;
+            text-decoration: none;
+            font-weight: 600;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+
+        .nav a:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        h2 {
+            text-align: center;
+            color: #fff;
+            font-weight: 600;
+            margin-bottom: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        textarea {
+    width: 100%;
+    height: 140px;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.4);
+    outline: none;
+    font-size: 15px;
+    background: rgba(255, 255, 255, 0.55);
+    transition: 0.3s;
+    box-sizing: border-box;
+}
+
+
+        textarea:focus {
+            background: white;
+            box-shadow: 0 0 10px rgba(255,255,255,0.4);
+        }
+
+        /* BUTTON */
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            margin-top: 18px;
+            font-size: 16px;
+            font-weight: 600;
+            background: #5b86e5;
+            color: white;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #4a6fc7;
+        }
+
+        .output-box {
+            margin-top: 22px;
+            padding: 18px;
+            border-radius: 12px;
+            display: none;
+            background: rgba(255, 255, 255, 0.85);
+            border-left: 5px solid #5b86e5;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .output-box p {
+            font-size: 15px;
+            margin: 6px 0;
+        }
+
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <div class="nav">
+            <a href="/">Home</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/chatbot">Chatbot</a>
+        </div>
+
+        <h2>Stress Level Prediction</h2>
+
+        <textarea id="userText" placeholder="Describe your feelings, mood or situation..."></textarea>
+
+        <button onclick="getPrediction()">Analyze Stress</button>
+
+        <div class="output-box" id="resultBox">
+            <p><strong>Result:</strong> <span id="result"></span></p>
+            <p><strong>Confidence:</strong> <span id="confidence"></span></p>
+        </div>
+
+    </div>
+
+    <script>
+        function getPrediction() {
+            const text = document.getElementById("userText").value.trim();
+
+            if (text === "") {
+                alert("Please enter some text!");
+                return;
+            }
+
+            fetch("/predict", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: text }),
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById("resultBox").style.display = "block";
+                document.getElementById("result").innerText = data.result;
+                document.getElementById("confidence").innerText = data.confidence;
+            });
+        }
+    </script>
+
+</body>
+</html>

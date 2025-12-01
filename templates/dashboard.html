@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stress Prediction Dashboard</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background: linear-gradient(135deg, #1f1c2c, #928DAB);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* NAV BAR */
+        .nav-custom {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .nav-custom a {
+            margin: 0 12px;
+            text-decoration: none;
+            font-weight: 600;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 10px;
+            transition: 0.3s;
+        }
+
+        .nav-custom a:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* GLASS CARD */
+        .glass-card {
+            backdrop-filter: blur(14px) saturate(160%);
+            -webkit-backdrop-filter: blur(14px) saturate(160%);
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .title {
+            color: white;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* PIE CHART SIZE */
+        .pie-wrapper {
+            width: 420px;
+            height: 420px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .line-wrapper {
+            width: 420px;
+            height: 420px;
+            margin: 0 auto;
+        }
+
+        table thead {
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAV -->
+    <div class="nav-custom">
+        <a href="/">Home</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/chatbot">Chatbot</a>
+    </div>
+
+    <h2 class="title">📊 Stress Prediction Dashboard</h2>
+
+    <div class="container">
+
+        <!-- CHARTS -->
+        <div class="row mb-4">
+
+            <!-- PIE -->
+            <div class="col-md-6 mb-3">
+                <div class="glass-card">
+                    <h5 class="text-center text-white">Stress vs No Stress</h5>
+                    <div class="pie-wrapper">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LINE -->
+            <div class="col-md-6 mb-3">
+                <div class="glass-card">
+                    <h5 class="text-center text-white">Predictions Over Time</h5>
+                    <div class="line-wrapper">
+                        <canvas id="lineChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- TABLE -->
+        <div class="glass-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="text-white">Prediction Logs</h5>
+                <button class="btn btn-light" onclick="loadLogs()">⟳ Refresh</button>
+            </div>
+
+            <div class="table-responsive mt-3">
+                <table class="table table-bordered table-striped table-light">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Text</th>
+                            <th>Result</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+<script>
+let pieChart, lineChart;
+
+async function loadLogs() {
+    try {
+        const response = await fetch("/logs");
+        const data = await response.json();
+
+        if (data.status !== "success") return;
+
+        const logs = data.logs;
+
+        updateTable(logs);
+        updateCharts(logs);
+
+    } catch (err) {
+        console.error("Fetch error:", err);
+    }
+}
+
+// TABLE UPDATE
+function updateTable(logs) {
+    const tableBody = document.getElementById("logTable");
+    tableBody.innerHTML = "";
+
+    logs.forEach(log => {
+        const row = `
+            <tr>
+                <td>${log.timestamp || ""}</td>
+                <td>${log.text || ""}</td>
+                <td>${log.result || ""}</td>
+                <td>${log.confidence || ""}</td>
+            </tr>`;
+        tableBody.innerHTML += row;
+    });
+}
+
+// CHART UPDATE
+function updateCharts(logs) {
+
+    const stressCount = logs.filter(l => l.result === "Stress").length;
+    const noStressCount = logs.filter(l => l.result === "No Stress").length;
+
+    const timeLabels = logs.map(l => l.timestamp);
+    const confidenceValues = logs.map(l => parseFloat(l.confidence));
+
+    if (pieChart) pieChart.destroy();
+    if (lineChart) lineChart.destroy();
+
+    /*** PIE CHART ***/
+    const pieCtx = document.getElementById("pieChart").getContext("2d");
+
+    pieChart = new Chart(pieCtx, {
+        type: "pie",
+        data: {
+            labels: ["Stress", "No Stress"],
+            datasets: [{
+                data: [stressCount, noStressCount],
+                backgroundColor: [
+                    "rgba(231, 74, 59, 0.85)",
+                    "rgba(28, 200, 138, 0.85)"
+                ],
+                hoverOffset: 12,
+                borderWidth: 2,
+                borderColor: "rgba(255,255,255,0.7)",
+                hoverBorderColor: "#fff"
+            }]
+        },
+        options: {
+            animation: {
+                animateRotate: true,
+                animateScale: true
+            },
+            plugins: {
+                legend: {
+                    labels: { color: "white", font: { size: 14 } }
+                },
+                tooltip: {
+                    backgroundColor: "rgba(0,0,0,0.7)",
+                    titleColor: "#fff",
+                    bodyColor: "#fff"
+                }
+            }
+        }
+    });
+
+    /*** LINE CHART (Gradient + Glow) ***/
+    // LINE CHART – fixed clean design
+const lineCtx = document.getElementById("lineChart").getContext("2d");
+
+lineChart = new Chart(lineCtx, {
+    type: "line",
+    data: {
+        labels: timeLabels.map(t => t.replace("2025-", "")), // shorten timestamps
+        datasets: [{
+            label: "Confidence Score",
+            data: confidenceValues,
+            borderColor: "#00E0FF",
+            borderWidth: 3,
+            pointBackgroundColor: "#ffffff",
+            pointBorderColor: "#00E0FF",
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            fill: false,              // ❌ REMOVE BLUE BLOCK
+            tension: 0.3              // smooth line
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,  // chart auto-scales properly
+        layout: { padding: 20 },     // more breathing space
+
+        scales: {
+            x: {
+                ticks: {
+                    color: "white",
+                    maxRotation: 0,   // no diagonal
+                    autoSkip: true,   // skip crowding
+                    autoSkipPadding: 15
+                },
+                grid: { display: false }
+            },
+            y: {
+                ticks: { color: "white" },
+                grid: { color: "rgba(255,255,255,0.1)" },
+                suggestedMin: 0.70,  // stops squeezing to top
+                suggestedMax: 1.02
+            }
+        },
+
+        plugins: {
+            legend: { labels: { color: "white" } },
+            tooltip: {
+                backgroundColor: "rgba(0,0,0,0.8)",
+                titleColor: "#fff",
+                bodyColor: "#fff"
+            }
+        }
+    }
+});
+
+}
+
+// Initial load
+loadLogs();
+</script>
+
+
+</body>
+</html>

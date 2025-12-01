@@ -1,0 +1,63 @@
+def generate_chatbot_reply(user_message, stress_label, session_id="default"):
+    prompt = f"""
+You are a warm, friendly mental-health support chatbot.
+
+RULES:
+1. If the user expresses sadness, stress, worry, or frustration — reply softly and supportively.
+2. If the user asks a normal question (like “who are you”, “what can you do”, “hi”, “tell me something”) — reply normally, without emotional therapy tone.
+3. Keep responses short (2–3 sentences).
+4. Do NOT lecture or sound like a professional therapist.
+5. Do NOT diagnose or give medical advice.
+6. If stress_label == "Stress", be a little softer, but still natural.
+
+Detected emotional state: {stress_label}
+User message: "{user_message}"
+
+Now respond in a natural, human-like way.
+"""
+
+    try:
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=120
+        )
+
+        return response.choices[0].message.content.strip()
+
+    except Exception as e:
+        print("Groq API Error:", e)
+        return "I'm here for you. Could you tell me what's on your mind?"
+    
+
+
+
+
+
+
+
+
+    @app.route("/chatbot_message", methods=["POST"])
+def chatbot_response():
+    payload = request.get_json() or {}
+    user_message = payload.get("message", "")
+    session_id = payload.get("session_id", None)
+
+    if not isinstance(user_message, str) or user_message.strip() == "":
+        return jsonify({"reply": "Please type something."}), 400
+
+    label, conf = detect_stress(user_message)
+    reply_text = generate_chatbot_reply(user_message, stress_label=label, session_id=session_id)
+
+    if label == "Stress":
+        reply_text = "I’m really sorry you're feeling this way — " + reply_text
+
+    log_prediction(user_message, label, conf)
+
+    return jsonify({
+        "reply": reply_text,
+        "stress_label": label,
+        "confidence": round(conf, 4)
+    })

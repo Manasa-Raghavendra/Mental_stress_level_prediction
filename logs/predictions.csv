@@ -1,0 +1,22 @@
+timestamp,text,result,confidence
+2025-11-29 22:37:12,i am very happy,No Stress,0.992
+2025-11-29 22:40:51,i am very sad,Stress,0.9935
+2025-11-29 22:41:25,i am no longer happy in my life,Stress,0.9938
+2025-11-29 22:41:41,i have loads of work,No Stress,0.7593
+2025-11-29 22:42:02,i have suffered lot because of lots of work,Stress,0.9895
+2025-11-29 22:50:45,i am not happy,Stress,0.9844
+2025-11-29 22:51:06,i am  happy,No Stress,0.9836
+2025-11-29 22:52:31,i am not happy,Stress,0.9844
+2025-11-29 22:52:49,i am tired of working,Stress,0.9937
+2025-11-29 22:52:52,i am tired of working,Stress,0.9937
+2025-11-29 22:53:13,i love working,No Stress,0.9915
+2025-11-29 22:58:30,i love working,No Stress,0.9915
+2025-11-29 22:58:40,i hate working,Stress,0.9873
+2025-11-29 23:04:09,i hate working,Stress,0.9873
+2025-11-29 23:04:17,i love working,No Stress,0.9915
+
+2025-11-30 20:41:43,"Lately I’ve been feeling like I’m constantly running out of energy, no matter how much I rest. Work keeps piling up, and I feel like I’m barely keeping my head above the water. Even simple tasks feel overwhelming and I don’t know how to slow down.",Stress,0.9936
+2025-11-30 20:42:13,"This week has actually been pretty refreshing. I took some time to catch up on my hobbies, spent a few hours painting, and had a peaceful evening walk. It felt really nice to just breathe and enjoy the moment without rushing anywhere.",No Stress,0.9959
+2025-11-30 20:43:40,"“Yeah, everything is totally fine. I only cried three times today, but who’s counting? Honestly, I’m just tired of pretending like I’m okay.”",Stress,0.8432
+2025-11-30 20:44:10,"“I’ve been thinking deeply about life lately, not because I’m worried, but because I actually have some free time to reflect. It feels surprisingly peaceful.”",No Stress,0.9956
+2025-11-30 21:06:54,i am good,No Stress,0.9885
