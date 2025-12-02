@@ -72,41 +72,36 @@ _model = None
 _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def ensure_model_loaded():
-    """
-    Lazily load tokenizer and model from HF (subfolder='model') when first needed.
-    This prevents long downloads during gunicorn import and reduces startup failures.
-    """
     global _tokenizer, _model, _device
 
     if _tokenizer is not None and _model is not None:
         return
 
-    print("Loading model/tokenizer from Hugging Face:", HF_MODEL_ID, "subfolder='model' ...")
+    print("Loading model/tokenizer from Hugging Face:", HF_MODEL_ID)
+
     try:
+        # Load tokenizer from ROOT (important!)
         _tokenizer = AutoTokenizer.from_pretrained(
             HF_MODEL_ID,
-            subfolder="model",
-            token=HF_TOKEN if HF_TOKEN else None,
-            repo_type="model",
-            revision="main",
-            local_files_only=False
+            token=HF_TOKEN if HF_TOKEN else None
         )
+
+        # Load model weights from /model folder
         _model = AutoModelForSequenceClassification.from_pretrained(
             HF_MODEL_ID,
             subfolder="model",
-            token=HF_TOKEN if HF_TOKEN else None,
-            repo_type="model",
-            revision="main",
-            local_files_only=False
+            token=HF_TOKEN if HF_TOKEN else None
         )
+
         _model.to(_device)
         _model.eval()
-        print("MODEL LOADED. Device:", _device)
+
+        print("MODEL LOADED SUCCESSFULLY.")
+
     except Exception as e:
-        # Provide an informative error so Render logs show what's wrong (auth / path / versions)
-        print("ERROR loading model/tokenizer:", str(e))
-        # Re-raise so failing requests get a clear traceback (optional)
+        print("ERROR loading model/tokenizer:", e)
         raise
+
 
 # -------------------------------
 # Logging helpers (CSV)
