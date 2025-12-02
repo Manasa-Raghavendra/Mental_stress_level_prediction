@@ -1,66 +1,118 @@
+# app.py
 from flask import Flask, render_template, request, jsonify
-import torch
-from transformers import DistilBertForSequenceClassification, DistilBertTokenizerFast
-import csv
 import os
+import csv
 from datetime import datetime
 from collections import deque
 from dotenv import load_dotenv
-from groq import Groq   # NEW: Groq API
-from huggingface_hub import login
+
+# Torch / Transformers
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+# Hugging Face hub
+from huggingface_hub import login as hf_login
+
+# Groq (optional)
+try:
+    from groq import Groq
+except Exception:
+    Groq = None
 
 app = Flask(__name__)
 
 # -------------------------------
-# LOAD ENV + GROQ CLIENT
+# ENV / CLIENTS
 # -------------------------------
 load_dotenv()
 
-print("LOADED KEY:", os.getenv("GROQ_API_KEY"))
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+HF_MODEL_ID = os.getenv("HF_MODEL_ID", "Manasa-Raghavendra07/mental_stress_model")
+HF_TOKEN = os.getenv("HF_TOKEN")  # must be set in Render if model is private
+
+# Initialize groq client if available/key present (non-fatal)
+groq_client = None
+if GROQ_API_KEY and Groq is not None:
+    try:
+        groq_client = Groq(api_key=GROQ_API_KEY)
+        print("Groq client initialized.")
+    except Exception as e:
+        print("Warning: failed to initialize Groq client:", e)
+else:
+    if GROQ_API_KEY:
+        print("Warning: groq package not installed; GROQ_API_KEY ignored.")
+    else:
+        print("No GROQ_API_KEY set; Groq features disabled.")
+
+# Login to HF if token present (makes downloads for private repos possible)
+if HF_TOKEN:
+    try:
+        hf_login(token=HF_TOKEN)
+        print("Logged in to Hugging Face hub with HF_TOKEN.")
+    except Exception as e:
+        print("Warning: huggingface_hub.login() failed:", e)
+else:
+    print("HF_TOKEN not set — attempting anonymous access to Hugging Face model.")
 
 # -------------------------------
 # PATHS / CONFIG
 # -------------------------------
-HF_MODEL_ID = "Manasa-Raghavendra07/mental_stress_model"
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-login(token=HF_TOKEN)
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FOLDER = os.path.join(BASE_DIR, "logs")
 LOG_FILE = os.path.join(LOG_FOLDER, "predictions.csv")
 MAX_HISTORY = 20
 
+os.makedirs(LOG_FOLDER, exist_ok=True)
+
 # -------------------------------
-# LOAD STRESS DETECTION MODEL
+# Lazy model/tokenizer loader
 # -------------------------------
-tokenizer = DistilBertTokenizerFast.from_pretrained(
-    HF_MODEL_ID,
-    token=HF_TOKEN,
-    subfolder="model"
-)
+_tokenizer = None
+_model = None
+_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-classifier = DistilBertForSequenceClassification.from_pretrained(
-    HF_MODEL_ID,
-    token=HF_TOKEN,
-    subfolder="model"
-)
+def ensure_model_loaded():
+    """
+    Lazily load tokenizer and model from HF (subfolder='model') when first needed.
+    This prevents long downloads during gunicorn import and reduces startup failures.
+    """
+    global _tokenizer, _model, _device
 
-classifier.to(device)
-classifier.eval()
+    if _tokenizer is not None and _model is not None:
+        return
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-classifier.to(device)
+    print("Loading model/tokenizer from Hugging Face:", HF_MODEL_ID, "subfolder='model' ...")
+    try:
+        _tokenizer = AutoTokenizer.from_pretrained(
+            HF_MODEL_ID,
+            subfolder="model",
+            token=HF_TOKEN if HF_TOKEN else None,
+            repo_type="model",
+            revision="main",
+            local_files_only=False
+        )
+        _model = AutoModelForSequenceClassification.from_pretrained(
+            HF_MODEL_ID,
+            subfolder="model",
+            token=HF_TOKEN if HF_TOKEN else None,
+            repo_type="model",
+            revision="main",
+            local_files_only=False
+        )
+        _model.to(_device)
+        _model.eval()
+        print("MODEL LOADED. Device:", _device)
+    except Exception as e:
+        # Provide an informative error so Render logs show what's wrong (auth / path / versions)
+        print("ERROR loading model/tokenizer:", str(e))
+        # Re-raise so failing requests get a clear traceback (optional)
+        raise
 
 # -------------------------------
 # Logging helpers (CSV)
 # -------------------------------
-os.makedirs(LOG_FOLDER, exist_ok=True)
-
 def log_prediction(text, result, confidence):
     file_exists = os.path.isfile(LOG_FILE)
-
     with open(LOG_FILE, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         if not file_exists:
@@ -83,14 +135,23 @@ def get_history(session_id=None):
         chat_histories[key] = deque(maxlen=MAX_HISTORY)
     return chat_histories[key]
 
-
 # -------------------------------
 # Stress detection
 # -------------------------------
 def detect_stress(text):
-    enc = tokenizer(text, return_tensors="pt", truncation=True, padding=True).to(device)
+    """
+    Returns (label_str, confidence_float)
+    """
+    ensure_model_loaded()
+    global _tokenizer, _model, _device
+
+    if not _tokenizer or not _model:
+        raise RuntimeError("Model/tokenizer not loaded.")
+
+    # Tokenize and run model
+    enc = _tokenizer(text, return_tensors="pt", truncation=True, padding=True).to(_device)
     with torch.no_grad():
-        out = classifier(**enc)
+        out = _model(**enc)
         probs = torch.softmax(out.logits, dim=1)
         confidence, pred = torch.max(probs, dim=1)
 
@@ -98,16 +159,31 @@ def detect_stress(text):
     label_str = "Stress" if label_idx == 1 else "No Stress"
     return label_str, float(confidence.item())
 
-
 # -------------------------------
-# GROQ Chatbot reply generator
+# Groq Chatbot reply generator (robust extraction)
 # -------------------------------
-# Global store for conversation history per session
 conversation_history = {}
 
-def generate_chatbot_reply(user_message, session_id="default"):
-    """Generate a ChatGPT-style conversational reply using Groq."""
+def _extract_groq_text(resp):
+    """
+    Groq SDK can return different shapes; attempt to extract assistant text robustly.
+    """
+    try:
+        # Try common shape: response.choices[0].message.content
+        choice = resp.choices[0]
+        # some SDKs return a mapping-like object
+        if hasattr(choice, "message") and getattr(choice.message, "content", None) is not None:
+            return choice.message.content
+        # fallback: maybe choice has 'text' attribute
+        if getattr(choice, "text", None):
+            return choice.text
+        # fallback to stringifying
+        return str(resp)
+    except Exception:
+        return str(resp)
 
+def generate_chatbot_reply(user_message, session_id="default"):
+    """Generate a ChatGPT-style conversational reply using Groq (if configured)."""
     # Initialize session history
     if session_id not in conversation_history:
         conversation_history[session_id] = [
@@ -115,35 +191,24 @@ def generate_chatbot_reply(user_message, session_id="default"):
         ]
 
     # Add user's message
-    conversation_history[session_id].append(
-        {"role": "user", "content": user_message}
-    )
+    conversation_history[session_id].append({"role": "user", "content": user_message})
+
+    if groq_client is None:
+        # Groq not configured — fallback reply
+        return "I can't reach the Groq API right now. I'm here to listen though — tell me more."
 
     try:
-        # Generate AI reply
         response = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=conversation_history[session_id],
             max_tokens=200
         )
-
-        ai_response = response.choices[0].message.content
-
-        # Save reply to history
-        conversation_history[session_id].append(
-            {"role": "assistant", "content": ai_response}
-        )
-
+        ai_response = _extract_groq_text(response)
+        conversation_history[session_id].append({"role": "assistant", "content": ai_response})
         return ai_response
-
     except Exception as e:
         print("Groq API Error:", e)
-        return "Something went wrong, but I'm here. Try saying that again!"
-
-
-
-
-
+        return "Something went wrong with the chatbot. Try again later."
 
 # -------------------------------
 # ROUTES
@@ -151,7 +216,6 @@ def generate_chatbot_reply(user_message, session_id="default"):
 @app.route("/")
 def home():
     return render_template("index.html")
-
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -161,22 +225,24 @@ def predict():
     if not isinstance(text, str) or text.strip() == "":
         return jsonify({"error": "Empty input!"}), 400
 
-    label, conf = detect_stress(text)
-    log_prediction(text, label, round(conf, 4))
-
-    return jsonify({"result": label, "confidence": round(conf, 4)})
-
+    try:
+        label, conf = detect_stress(text)
+        # Log only predictions (not chatbot messages)
+        log_prediction(text, label, round(conf, 4))
+        return jsonify({"result": label, "confidence": round(conf, 4)})
+    except Exception as e:
+        # Return a 500 with the message (also printed in logs)
+        print("Predict error:", e)
+        return jsonify({"error": "Model error", "message": str(e)}), 500
 
 @app.route("/dashboard")
 def dashboard():
     return render_template("dashboard.html")
 
-
 @app.route("/logs", methods=["GET"])
 def get_logs():
     try:
         logs = []
-
         if os.path.isfile(LOG_FILE) and os.path.getsize(LOG_FILE) > 0:
             with open(LOG_FILE, "r", encoding="utf-8") as f:
                 dict_reader = csv.DictReader(f)
@@ -187,17 +253,13 @@ def get_logs():
                         "result": row.get("result", ""),
                         "confidence": row.get("confidence", "")
                     })
-
         return jsonify({"status": "success", "logs": logs})
-
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-
 
 @app.route("/chatbot")
 def chatbot():
     return render_template("chatbot.html")
-
 
 @app.route("/chatbot_message", methods=["POST"])
 def chatbot_response():
@@ -210,16 +272,13 @@ def chatbot_response():
 
     # PURE ChatGPT-like conversation — no stress check, no logging
     reply_text = generate_chatbot_reply(user_message, session_id=session_id)
-
-    return jsonify({
-        "reply": reply_text
-    })
-
-
-
+    return jsonify({"reply": reply_text})
 
 # -------------------------------
-# Run app
+# Run (for local dev)
 # -------------------------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    # For local dev you can preload model to test (optional)
+    if os.getenv("PRELOAD_MODEL", "0") == "1":
+        ensure_model_loaded()
+    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
