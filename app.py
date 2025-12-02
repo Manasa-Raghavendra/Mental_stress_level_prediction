@@ -21,7 +21,7 @@ groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 # -------------------------------
 # PATHS / CONFIG
 # -------------------------------
-MODEL_PATH = "model"
+HF_MODEL_ID = "Manasa-Raghavendra07/mental_stress_model"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FOLDER = os.path.join(BASE_DIR, "logs")
 LOG_FILE = os.path.join(LOG_FOLDER, "predictions.csv")
@@ -30,8 +30,8 @@ MAX_HISTORY = 20
 # -------------------------------
 # LOAD STRESS DETECTION MODEL
 # -------------------------------
-tokenizer = DistilBertTokenizerFast.from_pretrained(MODEL_PATH)
-classifier = DistilBertForSequenceClassification.from_pretrained(MODEL_PATH)
+tokenizer = DistilBertTokenizerFast.from_pretrained(HF_MODEL_ID)
+classifier = DistilBertForSequenceClassification.from_pretrained(HF_MODEL_ID)
 classifier.eval()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
