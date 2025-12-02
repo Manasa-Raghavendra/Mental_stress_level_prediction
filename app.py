@@ -7,6 +7,7 @@ from datetime import datetime
 from collections import deque
 from dotenv import load_dotenv
 from groq import Groq   # NEW: Groq API
+from huggingface_hub import login
 
 app = Flask(__name__)
 
@@ -22,6 +23,10 @@ groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 # PATHS / CONFIG
 # -------------------------------
 HF_MODEL_ID = "Manasa-Raghavendra07/mental_stress_model"
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+login(token=HF_TOKEN)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FOLDER = os.path.join(BASE_DIR, "logs")
 LOG_FILE = os.path.join(LOG_FOLDER, "predictions.csv")
@@ -30,8 +35,8 @@ MAX_HISTORY = 20
 # -------------------------------
 # LOAD STRESS DETECTION MODEL
 # -------------------------------
-tokenizer = DistilBertTokenizerFast.from_pretrained(HF_MODEL_ID)
-classifier = DistilBertForSequenceClassification.from_pretrained(HF_MODEL_ID)
+tokenizer = DistilBertTokenizerFast.from_pretrained(HF_MODEL_ID, use_auth_token=HF_TOKEN)
+classifier = DistilBertForSequenceClassification.from_pretrained(HF_MODEL_ID, use_auth_token=HF_TOKEN)
 classifier.eval()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
