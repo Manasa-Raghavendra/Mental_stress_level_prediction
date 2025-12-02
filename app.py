@@ -35,8 +35,19 @@ MAX_HISTORY = 20
 # -------------------------------
 # LOAD STRESS DETECTION MODEL
 # -------------------------------
-tokenizer = DistilBertTokenizerFast.from_pretrained(HF_MODEL_ID, use_auth_token=HF_TOKEN)
-classifier = DistilBertForSequenceClassification.from_pretrained(HF_MODEL_ID, use_auth_token=HF_TOKEN)
+tokenizer = DistilBertTokenizerFast.from_pretrained(
+    HF_MODEL_ID,
+    token=HF_TOKEN,
+    subfolder="model"
+)
+
+classifier = DistilBertForSequenceClassification.from_pretrained(
+    HF_MODEL_ID,
+    token=HF_TOKEN,
+    subfolder="model"
+)
+
+classifier.to(device)
 classifier.eval()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
