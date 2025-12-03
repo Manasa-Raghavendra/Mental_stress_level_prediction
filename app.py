@@ -81,19 +81,17 @@ def ensure_model_loaded():
 
     try:
         print("STEP 1: Loading tokenizer…")
-        _tokenizer = AutoTokenizer.from_pretrained(
-            HF_MODEL_ID,
-            subfolder="model",
-            token=HF_TOKEN if HF_TOKEN else None
-        )
+       _tokenizer = AutoTokenizer.from_pretrained(
+    HF_MODEL_ID,
+    token=HF_TOKEN if HF_TOKEN else None
+)
         print("Tokenizer loaded successfully.")
 
         print("STEP 2: Loading model…")
         _model = AutoModelForSequenceClassification.from_pretrained(
-            HF_MODEL_ID,
-            subfolder="model",
-            token=HF_TOKEN if HF_TOKEN else None
-        )
+    HF_MODEL_ID,
+    token=HF_TOKEN if HF_TOKEN else None
+)
         print("Model weights loaded successfully.")
 
         _model.to(_device)
