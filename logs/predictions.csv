@@ -20,3 +20,4 @@ timestamp,text,result,confidence
 2025-11-30 20:43:40,"“Yeah, everything is totally fine. I only cried three times today, but who’s counting? Honestly, I’m just tired of pretending like I’m okay.”",Stress,0.8432
 2025-11-30 20:44:10,"“I’ve been thinking deeply about life lately, not because I’m worried, but because I actually have some free time to reflect. It feels surprisingly peaceful.”",No Stress,0.9956
 2025-11-30 21:06:54,i am good,No Stress,0.9885
+2025-12-02 16:18:37,i am not feeling good,Stress,0.9933
