@@ -80,18 +80,20 @@ def ensure_model_loaded():
     print("Loading model/tokenizer from Hugging Face:", HF_MODEL_ID)
 
     try:
-        # Load tokenizer from ROOT (important!)
+        print("STEP 1: Loading tokenizer…")
         _tokenizer = AutoTokenizer.from_pretrained(
             HF_MODEL_ID,
             token=HF_TOKEN if HF_TOKEN else None
         )
+        print("Tokenizer loaded successfully.")
 
-        # Load model weights from /model folder
+        print("STEP 2: Loading model…")
         _model = AutoModelForSequenceClassification.from_pretrained(
             HF_MODEL_ID,
-            subfolder="model",
+            subfolder="model",    # <-- DEBUG: this might be wrong
             token=HF_TOKEN if HF_TOKEN else None
         )
+        print("Model weights loaded successfully.")
 
         _model.to(_device)
         _model.eval()
@@ -99,8 +101,12 @@ def ensure_model_loaded():
         print("MODEL LOADED SUCCESSFULLY.")
 
     except Exception as e:
-        print("ERROR loading model/tokenizer:", e)
+        print("\n❌ MODEL LOAD ERROR ❌")
+        print("DETAILS:", e)
+        print("HF_MODEL_ID =", HF_MODEL_ID)
+        print("subfolder='model' probably wrong!")
         raise
+
 
 
 # -------------------------------
