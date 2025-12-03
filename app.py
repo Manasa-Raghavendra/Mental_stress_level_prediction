@@ -83,6 +83,7 @@ def ensure_model_loaded():
         print("STEP 1: Loading tokenizer…")
         _tokenizer = AutoTokenizer.from_pretrained(
             HF_MODEL_ID,
+            subfolder="model",
             token=HF_TOKEN if HF_TOKEN else None
         )
         print("Tokenizer loaded successfully.")
@@ -90,7 +91,7 @@ def ensure_model_loaded():
         print("STEP 2: Loading model…")
         _model = AutoModelForSequenceClassification.from_pretrained(
             HF_MODEL_ID,
-            subfolder="model",    # <-- DEBUG: this might be wrong
+            subfolder="model",
             token=HF_TOKEN if HF_TOKEN else None
         )
         print("Model weights loaded successfully.")
@@ -103,9 +104,8 @@ def ensure_model_loaded():
     except Exception as e:
         print("\n❌ MODEL LOAD ERROR ❌")
         print("DETAILS:", e)
-        print("HF_MODEL_ID =", HF_MODEL_ID)
-        print("subfolder='model' probably wrong!")
         raise
+
 
 
 
